@@ -3,18 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- Meta description for SEO -->
-    <meta name="description" content="Otaku Calendar is a tool to generate personalized anime schedules for the week, using data from Jikan Moe. Export your anime schedule as an .ics file and add it to your calendar app to stay updated on your favorite shows.">
-    
-    <!-- Meta keywords for SEO -->
-    <meta name="keywords" content="anime schedule, Otaku Calendar, anime calendar generator, Jikan Moe API, anime .ics file, anime calendar export, weekly anime schedule, add anime to calendar, anime airing dates, calendar for anime, anime tracker">
-    
-    <!-- Google site verification meta tag -->
     <meta name="google-site-verification" content="Bt9IrxyJmYNSmpqc8gtYsiTm2jzNVtGEfMD7oZjm5gE" />
-    
     <title>Otaku Calendar</title>
-    
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -29,27 +19,9 @@
             margin: 0;
             padding: 20px;
         }
-
         h1 {
             color: #4A90E2;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
         }
-
-        p {
-            text-align: center;
-            max-width: 600px;
-            margin-bottom: 20px;
-        }
-
-        ul {
-            text-align: left;
-            max-width: 600px;
-        }
-
-        li {
-            margin-bottom: 10px;
-        }
-
         button {
             background-color: #4A90E2;
             color: white;
@@ -58,33 +30,7 @@
             padding: 10px 20px;
             font-size: 18px;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
-
-        button:hover {
-            background-color: #357ABD;
-        }
-
-        #progressBar {
-            width: 100%;
-            background-color: #f3f3f3;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            height: 20px;
-            margin: 20px 0;
-            display: none;
-        }
-
-        #progress {
-            width: 0;
-            height: 100%;
-            background-color: #4caf50;
-            text-align: center;
-            line-height: 20px;
-            color: white;
-            border-radius: 5px;
-        }
-
         #console {
             border: 1px solid #ccc;
             padding: 10px;
@@ -94,32 +40,98 @@
             max-width: 500px;
             height: 150px;
             overflow-y: auto;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <h1>Otaku Calendar</h1>
-    <p>Welcome to the Otaku Calendar! This tool allows you to generate a personalized anime calendar for the week based on the latest anime schedules. The calendar can be exported as an .ics file that you can add to your personal calendar app to track airing dates and times.</p>
-    <p>Follow these steps to generate your anime calendar:</p>
-    <ul>
-        <li>1. Click the <strong>Generate Anime Calendar</strong> button below.</li>
-        <li>2. The tool will automatically fetch anime schedules for the entire week from Monday to Sunday.</li>
-        <li>3. Once the data is gathered, it will generate an .ics file containing the anime schedules, which will be downloaded to your device.</li>
-        <li>4. Add the .ics file to your preferred calendar application (Google Calendar, Outlook, etc.) to stay updated with anime airing times!</li>
-        <li>5. Enjoy your personalized anime schedule.</li>
-    </ul>
-
     <button id="generateButton">Generate Anime Calendar</button>
-
-    <div id="progressBar">
-        <div id="progress">0%</div>
-    </div>
-
     <div id="console"></div>
 
-    <!-- External script -->
-    <script src="script.js"></script>
+    <script>
+        const generateButton = document.getElementById('generateButton');
+        const consoleElement = document.getElementById('console');
+
+        generateButton.addEventListener('click', generateAnimeCalendar);
+
+        function logToConsole(message) {
+            consoleElement.innerHTML += message + '<br>';
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+
+        function formatDate(date) {
+            return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        }
+
+        function convertISTtoUserTimezone(timestamp) {
+            const istDate = new Date(timestamp); // IST (UTC+5:30)
+            return new Intl.DateTimeFormat('en-US', {
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).format(istDate);
+        }
+
+        async function fetchAnimeSchedules(date) {
+            const response = await fetch(`https://aniwatch-api-net.vercel.app/api/v2/hianime/schedule?date=${date}`);
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status} ${response.statusText}`);
+            }
+            const data = await response.json();
+            return data.data.scheduledAnimes || [];
+        }
+
+        async function generateAnimeCalendar() {
+            consoleElement.innerHTML = '';
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            logToConsole(`Detected Timezone: ${userTimezone}`);
+
+            let icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//AnimeSchedule//EN\n`;
+            const today = new Date();
+            const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                const formattedDate = formatDate(date);
+                const dayName = daysOfWeek[date.getDay()];
+
+                logToConsole(`Fetching for ${dayName} (${formattedDate})...`);
+
+                try {
+                    const animeList = await fetchAnimeSchedules(formattedDate);
+
+                    animeList.forEach(anime => {
+                        const title = anime.name;
+                        const localTime = convertISTtoUserTimezone(anime.airingTimestamp);
+
+                        icsContent += `BEGIN:VEVENT\nSUMMARY:${title}\nDTSTART;TZID=${userTimezone}:${localTime}\nDESCRIPTION:Airing at ${localTime} (${userTimezone})\nEND:VEVENT\n`;
+                    });
+
+                    logToConsole(`Fetched schedule for ${dayName}`);
+                } catch (error) {
+                    logToConsole(`Failed to fetch schedule for ${dayName}: ${error.message}`);
+                }
+            }
+
+            icsContent += `END:VCALENDAR`;
+
+            const blob = new Blob([icsContent], { type: 'text/calendar' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'anime_schedule.ics';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            logToConsole('Anime calendar successfully generated and downloaded.');
+        }
+    </script>
 </body>
 </html>
