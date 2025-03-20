@@ -74,7 +74,7 @@
         }
 
         function formatICSDate(date) {
-            return date.toISOString().replace(/[-:]/g, '').split('.')[0]; // YYYYMMDDTHHMMSS
+            return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'; // UTC format YYYYMMDDTHHMMSSZ
         }
 
         async function fetchAnimeSchedules(date) {
@@ -92,6 +92,9 @@
             logToConsole(`Detected Timezone: ${userTimezone}`);
 
             let icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//AnimeSchedule//EN\n`;
+
+            // Add VTIMEZONE block for Google Calendar support
+            icsContent += `BEGIN:VTIMEZONE\nTZID:${userTimezone}\nX-LIC-LOCATION:${userTimezone}\nEND:VTIMEZONE\n`;
 
             const today = new Date();
             const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -112,7 +115,7 @@
                         const localTime = convertISTtoUserTimezone(anime.airingTimestamp);
                         const icsDate = formatICSDate(localTime);
 
-                        icsContent += `BEGIN:VEVENT\nSUMMARY:${title}\nDTSTART;TZID=${userTimezone}:${icsDate}\nDESCRIPTION:Airing at ${localTime.toLocaleString()} (${userTimezone})\nEND:VEVENT\n`;
+                        icsContent += `BEGIN:VEVENT\nSUMMARY:${title}\nDTSTART:${icsDate}\nDESCRIPTION:Airing at ${localTime.toLocaleString()} (${userTimezone})\nEND:VEVENT\n`;
                     });
 
                     logToConsole(`Fetched schedule for ${dayName}`);
