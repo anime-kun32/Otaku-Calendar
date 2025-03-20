@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="Bt9IrxyJmYNSmpqc8gtYsiTm2jzNVtGEfMD7oZjm5gE" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Otaku Calendar</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -65,16 +65,11 @@
 
         function convertISTtoUserTimezone(timestamp) {
             const istDate = new Date(timestamp); // IST (UTC+5:30)
-            return new Intl.DateTimeFormat('en-US', {
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            }).format(istDate);
+            return new Date(istDate.toLocaleString("en-US", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
+        }
+
+        function formatICSDate(date) {
+            return date.toISOString().replace(/[-:]/g, '').split('.')[0]; // Format YYYYMMDDTHHMMSS
         }
 
         async function fetchAnimeSchedules(date) {
@@ -92,6 +87,7 @@
             logToConsole(`Detected Timezone: ${userTimezone}`);
 
             let icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//AnimeSchedule//EN\n`;
+
             const today = new Date();
             const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -109,8 +105,9 @@
                     animeList.forEach(anime => {
                         const title = anime.name;
                         const localTime = convertISTtoUserTimezone(anime.airingTimestamp);
+                        const icsDate = formatICSDate(localTime);
 
-                        icsContent += `BEGIN:VEVENT\nSUMMARY:${title}\nDTSTART;TZID=${userTimezone}:${localTime}\nDESCRIPTION:Airing at ${localTime} (${userTimezone})\nEND:VEVENT\n`;
+                        icsContent += `BEGIN:VEVENT\nSUMMARY:${title}\nDTSTART;TZID=${userTimezone}:${icsDate}\nDESCRIPTION:Airing at ${localTime.toLocaleString()} (${userTimezone})\nEND:VEVENT\n`;
                     });
 
                     logToConsole(`Fetched schedule for ${dayName}`);
